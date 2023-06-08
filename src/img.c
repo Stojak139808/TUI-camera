@@ -75,14 +75,21 @@ int rgb_to_grey(image_t *src, image_t *dst){
 
 }
 
-int resize_image(image_t* src, image_t* dst){
+struct t_resize_image_info {
+    image_t *src;
+    image_t *dst;
+    int     y_start;
+    int     height;
+};
 
-    /* use nearest neighbour sampling for speed */
+void *t_resize_image(void *arg){
+    struct t_resize_image_info *args = (struct t_resize_image_info*)arg;
+
     int x = 0;
     int y = 0;
 
-    int x_ratio = INT_TO_FIXED(src->width) / dst->width;
-    int y_ratio = INT_TO_FIXED(src->height) / dst->height;
+    int x_ratio = INT_TO_FIXED(args->src->width) / args->dst->width;
+    int y_ratio = INT_TO_FIXED(args->src->height) / args->dst->height;
 
     int Px = 0;
     int Py = 0;
@@ -95,8 +102,8 @@ int resize_image(image_t* src, image_t* dst){
     int new_x = 0;
     int new_y = 0;
 
-    for(y = 0; y < dst->height; y++){
-        for(x = 0; x < dst->width; x++){
+    for(y = args->y_start; y < args->y_start + args->height; y++){
+        for(x = 0; x < args->dst->width; x++){
             Px = MULTIPLY_FIXED(INT_TO_FIXED(x), x_ratio);
             Py = MULTIPLY_FIXED(INT_TO_FIXED(y), y_ratio);
             y1 = CEIL(Py);
@@ -118,9 +125,42 @@ int resize_image(image_t* src, image_t* dst){
                 new_y = FIXED_TO_INT(y2);
             }
 
-            *PIXEL_AT(dst, x, y) = *PIXEL_AT(src, new_x, new_y);
+            *PIXEL_AT(args->dst, x, y) = *PIXEL_AT(args->src, new_x, new_y);
         }
     }
 
+}
+
+
+int resize_image(image_t* src, image_t* dst){
+
+    printf("resizing\n");
+    /* use nearest neighbour sampling for speed */
+    pthread_t *tid;
+    struct t_resize_image_info *targs;
+    int px_per_thread = 0;
+
+    tid = (pthread_t*)malloc(sizeof(pthread_t) * n_threads);
+    targs = (struct t_resize_image_info*)malloc(
+        sizeof(struct t_resize_image_info) * n_threads);
+
+    px_per_thread = dst->height / n_threads;
+
+    /* create threads */
+    for(int i = 0; i < n_threads; i++){
+        targs[i].src = src;
+        targs[i].dst = dst;
+        targs[i].height = px_per_thread;
+        targs[i].y_start = px_per_thread * i;
+        pthread_create(tid + i, NULL, t_resize_image, (void*)(targs + i));
+    }
+    for(int i = 0; i < n_threads; i++){
+        pthread_join(tid[i], NULL);
+    }
+
+    free(tid);
+    free(targs);
+
     return 0;
+
 }
