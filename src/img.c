@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "include/fixed_point.h"
 
 unsigned int n_threads = 1;
 
@@ -72,4 +73,54 @@ int rgb_to_grey(image_t *src, image_t *dst){
 
     return 0;
 
+}
+
+int resizePixels(image_t* src, image_t* dst){
+
+    /* use nearest neighbour sampling for speed */
+    int x = 0;
+    int y = 0;
+
+    int x_ratio = INT_TO_FIXED(src->width) / dst->width;
+    int y_ratio = INT_TO_FIXED(src->height) / dst->height;
+
+    int Px = 0;
+    int Py = 0;
+
+    int y1 = 0;
+    int y2 = 0;
+    int x1 = 0;
+    int x2 = 0;
+
+    int new_x = 0;
+    int new_y = 0;
+
+    for(y = 0; y < dst->height; y++){
+        for(x = 0; x < dst->width; x++){
+            Px = MULTIPLY_FIXED(INT_TO_FIXED(x), x_ratio);
+            Py = MULTIPLY_FIXED(INT_TO_FIXED(y), y_ratio);
+            y1 = CEIL(Py);
+            y2 = FLOOR(Py);
+            x1 = CEIL(Px);
+            x2 = FLOOR(Px);
+
+            if(x1 - Px < -1 * (x2 - Px)){
+                new_x = FIXED_TO_INT(x1);
+            }
+            else{
+                new_x = FIXED_TO_INT(x2);
+            }
+
+            if(y1 - Py < -1 * (y2 - Py)){
+                new_y = FIXED_TO_INT(y1);
+            }
+            else{
+                new_y = FIXED_TO_INT(y2);
+            }
+
+            *PIXEL_AT(dst, x, y) = *PIXEL_AT(src, new_x, new_y);
+        }
+    }
+
+    return 0;
 }

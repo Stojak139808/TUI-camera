@@ -19,5 +19,6 @@ typedef struct{
 extern unsigned int n_threads;
 
 int rgb_to_grey(image_t *src, image_t *dst);
+int resizePixels(image_t* src, image_t* dst);
 
 #endif
