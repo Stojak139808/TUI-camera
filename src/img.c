@@ -75,7 +75,7 @@ int rgb_to_grey(image_t *src, image_t *dst){
 
 }
 
-int resizePixels(image_t* src, image_t* dst){
+int resize_image(image_t* src, image_t* dst){
 
     /* use nearest neighbour sampling for speed */
     int x = 0;
