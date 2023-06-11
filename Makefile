@@ -4,31 +4,24 @@ BIN_DIR := build
 
 # files
 
-SRC_CPP := $(wildcard $(SRC_DIR)/*.cpp)
 SRC_C := $(wildcard $(SRC_DIR)/*.c)
 
-OBJ = $(SRC_CPP:$(SRC_DIR)/%.cpp=$(BIN_DIR)/%.o)
 OBJ += $(SRC_C:$(SRC_DIR)/%.c=$(BIN_DIR)/%.o)
 
 ## output biinary name
 MAIN := main
 
 # compiler / linker
-CPP = g++
 CC  = gcc
-LD  = g++
+LD  = gcc
 
-CFLAGS += $(shell pkgconf --cflags opencv4)
-LDLIBS += $(shell pkgconf --libs opencv4 ncurses)
+CFLAGS =
+LDLIBS = -lncurses
 
 all: $(MAIN)
 
 $(MAIN): $(OBJ) | $(BIN_DIR)
-	@echo $(OBJ)
 	$(LD) $(CFLAGS) $(LDLIBS) $^ -o $@
-
-$(BIN_DIR)/%.o: $(SRC_DIR)/%.cpp $(BIN_DIR)
-	$(CPP) $(CFLAGS) -c $< -o $@
 
 $(BIN_DIR)/%.o: $(SRC_DIR)/%.c $(BIN_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
