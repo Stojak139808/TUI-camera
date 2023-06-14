@@ -15,7 +15,7 @@ MAIN := main
 CC  = gcc
 LD  = gcc
 
-CFLAGS =
+CFLAGS = -Wall
 LDLIBS = -lncurses -lturbojpeg
 
 all: $(MAIN)

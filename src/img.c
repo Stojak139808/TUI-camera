@@ -1,5 +1,3 @@
-/* image processing routines */
-
 #include <pthread.h>
 #include "include/img.h"
 #include <stdint.h>
@@ -32,8 +30,9 @@ static void *t_rgb_to_grey(void *arg){
             *(args->dst->image + args->dst->width*y + x) = (s[0]+s[1]+s[2])/3;
         }
     }
-}
 
+    return NULL;
+}
 
 int rgb_to_grey(image_t *src, image_t *dst){
 
@@ -132,8 +131,9 @@ void *t_resize_image(void *arg){
         }
     }
 
-}
+    return NULL;
 
+}
 
 int resize_image(image_t* src, image_t* dst){
 
@@ -179,8 +179,7 @@ void decompress_jpeg(uint8_t *compressed_image, unsigned int jpeg_size,
     if( NULL == jpeg_decompressor ){
         fprintf(
             stderr,
-            "jpeg error: no decompressor\n",
-            tjGetErrorStr2(jpeg_decompressor)
+            "jpeg error: failed to create decompressor\n"
         );
         exit(EXIT_FAILURE);
     }

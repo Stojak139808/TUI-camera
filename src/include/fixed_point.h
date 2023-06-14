@@ -18,7 +18,7 @@
 #define FLOOR(x)        (x & (FRACTION_MASK << SHIFT_COUNT))
 
 /* fixed point ceil */
-#define CEIL(x)         (x | FRACTION_MASK + 1)
+#define CEIL(x)         ((x | FRACTION_MASK) + 1)
 
 /* fixed point multiplication */
 #define MULTIPLY_FIXED(a, b) (((long int)a * b) >> SHIFT_COUNT)
