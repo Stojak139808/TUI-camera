@@ -16,7 +16,7 @@ CC  = gcc
 LD  = gcc
 
 CFLAGS =
-LDLIBS = -lncurses
+LDLIBS = -lncurses -lturbojpeg
 
 all: $(MAIN)
 
