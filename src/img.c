@@ -6,6 +6,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "include/fixed_point.h"
+#include <turbojpeg.h>
+#include <errno.h>
+#include <string.h>
 
 unsigned int n_threads = 1;
 
@@ -134,7 +137,6 @@ void *t_resize_image(void *arg){
 
 int resize_image(image_t* src, image_t* dst){
 
-    printf("resizing\n");
     /* use nearest neighbour sampling for speed */
     pthread_t *tid;
     struct t_resize_image_info *targs;
@@ -162,5 +164,65 @@ int resize_image(image_t* src, image_t* dst){
     free(targs);
 
     return 0;
+
+}
+
+void decompress_jpeg(uint8_t *compressed_image, unsigned int jpeg_size,
+    image_t *dst){
+
+    int jpegSubsamp, width = 1000, height = 1000;
+    int ret = 0;
+    uint8_t buffer[1000*1000*3];
+
+    tjhandle jpeg_decompressor = tjInitDecompress();
+
+    if( NULL == jpeg_decompressor ){
+        fprintf(
+            stderr,
+            "jpeg error: no decompressor\n",
+            tjGetErrorStr2(jpeg_decompressor)
+        );
+        exit(EXIT_FAILURE);
+    }
+
+    ret = tjDecompressHeader2(
+        jpeg_decompressor,
+        compressed_image,
+        jpeg_size,
+        &width,
+        &height,
+        &jpegSubsamp
+    );
+
+    if( -1 == ret ){
+        fprintf(stderr, "jpeg error: %s\n", tjGetErrorStr2(jpeg_decompressor));
+        exit(EXIT_FAILURE);
+    }
+
+    ret = tjDecompress2(
+        jpeg_decompressor,
+        compressed_image,
+        jpeg_size,
+        buffer,
+        width,
+        0,
+        height,
+        TJPF_RGB,
+        TJFLAG_FASTDCT
+    );
+
+    if( -1 == ret ){
+        fprintf(stderr, "jpeg error: %s\n", tjGetErrorStr2(jpeg_decompressor));
+        exit(EXIT_FAILURE);
+    }
+
+    dst->image = (uint8_t*)malloc(width*height*3);
+    dst->height = height;
+    dst->width = width;
+    dst->depth = 3;
+
+    memcpy(dst->image, buffer, dst->height * dst->width * dst->depth);
+
+    tjDestroy(jpeg_decompressor);
 
 }

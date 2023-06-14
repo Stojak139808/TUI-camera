@@ -20,5 +20,7 @@ extern unsigned int n_threads;
 
 int rgb_to_grey(image_t *src, image_t *dst);
 int resize_image(image_t* src, image_t* dst);
+void decompress_jpeg(uint8_t *compressed_image, unsigned int jpeg_size,
+    image_t *dst);
 
 #endif
