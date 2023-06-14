@@ -50,8 +50,50 @@ static int              out_buf;
 static int              force_format;
 static int              frame_count = 70;
 
-static void errno_exit(const char *s)
-{
+static image_t          decompressed_image;
+static image_t          gray_buffer;
+static image_t          resized_buffer;
+
+static int xioctl(int fh, int request, void *arg);
+static void errno_exit(const char *s);
+
+static void init_image_processing(){
+
+    int camera_y, camera_x; /* camera dimensions */
+    int terminal_y, terminal_x; /* camera dimensions */
+    struct v4l2_format fmt;
+
+    CLEAR(fmt);
+
+    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    if (-1 == xioctl(fd, VIDIOC_G_FMT, &fmt)){
+        errno_exit("VIDIOC_G_FMT");
+    }
+
+    camera_y = fmt.fmt.pix.height;
+    camera_x = fmt.fmt.pix.width;
+
+    gray_buffer.height = camera_y;
+    gray_buffer.width = camera_x;
+    gray_buffer.depth = 1;
+    gray_buffer.image = (uint8_t*)malloc(camera_y * camera_x);
+
+    get_window_xy(&terminal_x, &terminal_y);
+
+    resized_buffer.height = terminal_y;
+    resized_buffer.width = terminal_x;
+    resized_buffer.depth = 1;
+    resized_buffer.image = (uint8_t*)malloc(terminal_y * terminal_x);
+
+}
+
+static void uninit_image_processing(){
+    //free(rgb_buffer.image);
+    free(gray_buffer.image);
+    free(resized_buffer.image);
+}
+
+static void errno_exit(const char *s){
     fprintf(stderr, "%s error %d, %s\n", s, errno, strerror(errno));
     exit(EXIT_FAILURE);
 }
@@ -67,14 +109,19 @@ static int xioctl(int fh, int request, void *arg)
     return r;
 }
 
-static void process_image(const void *p, int size)
-{
-    if (out_buf)
-        fwrite(p, size, 1, stdout);
+static void process_image(void *p, int size){
 
-    fflush(stderr);
-    fprintf(stderr, ".");
-    fflush(stdout);
+    decompress_jpeg(p, size, &decompressed_image);
+
+    rgb_to_grey(&decompressed_image, &gray_buffer);
+    resize_image(&gray_buffer, &resized_buffer);
+
+    display_frame(
+        resized_buffer.image,
+        resized_buffer.width * resized_buffer.height
+        );
+
+    free(decompressed_image.image);
 }
 
 static int read_frame(void)
@@ -84,45 +131,45 @@ static int read_frame(void)
 
     switch (io) {
     case IO_METHOD_READ:
-    if (-1 == read(fd, buffers[0].start, buffers[0].length)) {
-        switch (errno) {
-        case EAGAIN:
-            return 0;
+        if (-1 == read(fd, buffers[0].start, buffers[0].length)) {
+            switch (errno) {
+            case EAGAIN:
+                return 0;
 
-        case EIO:
+            case EIO:
             /* Could ignore EIO, see spec. */
             /* fall through */
-        default:
-            errno_exit("read");
+            default:
+                errno_exit("read");
+            }
         }
-    }
-    process_image(buffers[0].start, buffers[0].length);
-    break;
+        process_image(buffers[0].start, buffers[0].length);
+        break;
 
     case IO_METHOD_MMAP:
-    CLEAR(buf);
+        CLEAR(buf);
 
-    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    buf.memory = V4L2_MEMORY_MMAP;
-    if (-1 == xioctl(fd, VIDIOC_DQBUF, &buf)) {
-        switch (errno) {
-        case EAGAIN:
-            return 0;
-        case EIO:
-            /* Could ignore EIO, see spec. */
-            /* fall through */
-        default:
-            errno_exit("VIDIOC_DQBUF");
+        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        buf.memory = V4L2_MEMORY_MMAP;
+        if (-1 == xioctl(fd, VIDIOC_DQBUF, &buf)) {
+            switch (errno) {
+            case EAGAIN:
+                return 0;
+            case EIO:
+                /* Could ignore EIO, see spec. */
+                /* fall through */
+            default:
+                errno_exit("VIDIOC_DQBUF");
+            }
         }
-    }
 
-    assert(buf.index < n_buffers);
+        assert(buf.index < n_buffers);
 
-    process_image(buffers[buf.index].start, buf.bytesused);
+        process_image(buffers[buf.index].start, buf.bytesused);
 
-    if (-1 == xioctl(fd, VIDIOC_QBUF, &buf))
-        errno_exit("VIDIOC_QBUF");
-    break;
+        if (-1 == xioctl(fd, VIDIOC_QBUF, &buf))
+            errno_exit("VIDIOC_QBUF");
+        break;
 
     case IO_METHOD_USERPTR:
         CLEAR(buf);
@@ -401,8 +448,8 @@ static void init_userp(unsigned int buffer_size)
     }
 }
 
-static void init_device(void)
-{
+static void init_device(void){
+
     struct v4l2_capability cap;
     struct v4l2_cropcap cropcap;
     struct v4l2_crop crop;
@@ -444,9 +491,7 @@ static void init_device(void)
         break;
     }
 
-
     /* Select video input, video standard and tune here. */
-
 
     CLEAR(cropcap);
 
@@ -470,24 +515,20 @@ static void init_device(void)
         /* Errors ignored. */
     }
 
+    /* set RGB24 format */
     CLEAR(fmt);
-
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    if (force_format) {
-        fmt.fmt.pix.width       = 640;
-        fmt.fmt.pix.height      = 480;
-        fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-        fmt.fmt.pix.field       = V4L2_FIELD_INTERLACED;
-
-        if (-1 == xioctl(fd, VIDIOC_S_FMT, &fmt))
-            errno_exit("VIDIOC_S_FMT");
-
-        /* Note VIDIOC_S_FMT may change width and height. */
-    } else {
-        /* Preserve original settings as set by v4l2-ctl for example */
-        if (-1 == xioctl(fd, VIDIOC_G_FMT, &fmt))
-            errno_exit("VIDIOC_G_FMT");
+    if (-1 == xioctl(fd, VIDIOC_G_FMT, &fmt)){
+        errno_exit("VIDIOC_G_FMT");
     }
+
+    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB24;
+
+    if (-1 == xioctl(fd, VIDIOC_S_FMT, &fmt)){
+        errno_exit("VIDIOC_S_FMT");
+    }
+
+    assert(fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB24);
 
     /* Buggy driver paranoia. */
     min = fmt.fmt.pix.width * 2;
@@ -639,10 +680,19 @@ int main(int argc, char **argv)
     open_device();
     init_device();
     start_capturing();
+
+    init_window();
+    init_image_processing();
+
     mainloop();
+    uninit_window();
+    uninit_image_processing();
+
     stop_capturing();
     uninit_device();
     close_device();
+
     fprintf(stderr, "\n");
+
     return 0;
 }
