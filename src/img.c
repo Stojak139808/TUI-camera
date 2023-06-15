@@ -8,7 +8,10 @@
 #include <errno.h>
 #include <string.h>
 
-unsigned int n_threads = 1;
+/* don't use this is functions that start threads as it can change at any time 
+   and that could break joining threads together
+*/
+static volatile unsigned int n_threads = 1;
 
 /* slice image into n horizontal stripes to re-color */
 struct t_rgb_to_grey_info {
@@ -39,6 +42,7 @@ int rgb_to_grey(image_t *src, image_t *dst){
     pthread_t *tid;
     struct t_rgb_to_grey_info *targs;
     int px_per_thread = 0;
+    volatile unsigned int local_n_threads = n_threads;
 
     if(src->height != dst->height || src->width  != dst->width){
         fprintf(stderr, "rgb_to_grey: sizes don't match\n");
@@ -50,23 +54,28 @@ int rgb_to_grey(image_t *src, image_t *dst){
         return 1;
     }
 
-    tid = (pthread_t*)malloc(sizeof(pthread_t) * n_threads);
+    tid = (pthread_t*)malloc(sizeof(pthread_t) * local_n_threads);
     targs = (struct t_rgb_to_grey_info*)malloc(
-        sizeof(struct t_rgb_to_grey_info) * n_threads);
+        sizeof(struct t_rgb_to_grey_info) * local_n_threads);
 
-    px_per_thread = dst->height / n_threads;
+    px_per_thread = dst->height / local_n_threads;
 
     /* create threads */
-    for(int i = 0; i < n_threads; i++){
+    for(int i = 0; i < local_n_threads; i++){
         targs[i].src = src;
         targs[i].dst = dst;
         targs[i].height = px_per_thread;
         targs[i].y_start = px_per_thread * i;
+
+        if( i + 1 == local_n_threads ){
+            targs[i].height += dst->height % local_n_threads;
+        }
+
         pthread_create(tid + i, NULL, t_rgb_to_grey, (void*)(targs + i));
     }
 
     /* join all children */
-    for (int i = 0; i < n_threads; i++){
+    for (int i = 0; i < local_n_threads; i++){
         pthread_join(tid[i], NULL);
     }
 
@@ -141,22 +150,28 @@ int resize_image(image_t* src, image_t* dst){
     pthread_t *tid;
     struct t_resize_image_info *targs;
     int px_per_thread = 0;
+    volatile unsigned int local_n_threads = n_threads;
 
-    tid = (pthread_t*)malloc(sizeof(pthread_t) * n_threads);
+    tid = (pthread_t*)malloc(sizeof(pthread_t) * local_n_threads);
     targs = (struct t_resize_image_info*)malloc(
-        sizeof(struct t_resize_image_info) * n_threads);
+        sizeof(struct t_resize_image_info) * local_n_threads);
 
-    px_per_thread = dst->height / n_threads;
+    px_per_thread = dst->height / local_n_threads;
 
     /* create threads */
-    for(int i = 0; i < n_threads; i++){
+    for(int i = 0; i < local_n_threads; i++){
         targs[i].src = src;
         targs[i].dst = dst;
         targs[i].height = px_per_thread;
         targs[i].y_start = px_per_thread * i;
+
+        if( i + 1 == local_n_threads ){
+            targs[i].height += dst->height % local_n_threads;
+        }
+
         pthread_create(tid + i, NULL, t_resize_image, (void*)(targs + i));
     }
-    for(int i = 0; i < n_threads; i++){
+    for(int i = 0; i < local_n_threads; i++){
         pthread_join(tid[i], NULL);
     }
 
@@ -224,4 +239,12 @@ void decompress_jpeg(uint8_t *compressed_image, unsigned int jpeg_size,
 
     tjDestroy(jpeg_decompressor);
 
+}
+
+void set_thread_n(int n){
+    n_threads = n;
+}
+
+int get_thread_n(void){
+    return n_threads;
 }
