@@ -7,9 +7,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <assert.h>
 
 #include <getopt.h>
+#include <ncurses.h>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -36,7 +38,6 @@ static char             *dev_name;
 static int              fd = -1;
 struct buffer           *buffers;
 static unsigned int     n_buffers;
-static int              frame_count = 70;
 
 static image_t          decompressed_image;
 static image_t          gray_buffer;
@@ -144,40 +145,41 @@ static int read_frame(void){
 
 static void mainloop(void){
 
-    unsigned int count;
+    fd_set fds;
+    struct timeval tv;
+    int r;
 
-    count = frame_count;
+    for (;;) {
+        FD_ZERO(&fds);
+        FD_SET(fd, &fds);
 
-    while (count-- > 0) {
-        for (;;) {
-            fd_set fds;
-            struct timeval tv;
-            int r;
+        /* Timeout. */
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
 
-            FD_ZERO(&fds);
-            FD_SET(fd, &fds);
+        r = select(fd + 1, &fds, NULL, NULL, &tv);
 
-            /* Timeout. */
-            tv.tv_sec = 2;
-            tv.tv_usec = 0;
-
-            r = select(fd + 1, &fds, NULL, NULL, &tv);
-
-            if (-1 == r) {
-                if (EINTR == errno)
-                    continue;
-                errno_exit("select");
-            }
-
-            if (0 == r) {
-                fprintf(stderr, "select timeout\n");
-                exit(EXIT_FAILURE);
-            }
-
-            if (read_frame())
-                break;
-            /* EAGAIN - continue select loop. */
+        if (-1 == r) {
+            if (EINTR == errno)
+                continue;
+            errno_exit("select");
         }
+
+        if (0 == r) {
+            fprintf(stderr, "select timeout\n");
+            exit(EXIT_FAILURE);
+        }
+
+        read_frame();
+
+        switch (wgetch(stdscr)){
+        case 27: /* esc */
+            break;
+        default:
+            /* do nothing, repeat loop */
+            continue;
+        }
+        break;
     }
 }
 
@@ -398,24 +400,27 @@ static void usage(FILE *fp, int argc, char **argv){
          "Usage: %s [options]\n\n"
          "Version 1.3\n"
          "Options:\n"
-         "-d | --device name   Video device name [%s]\n"
-         "-h | --help      Print this message\n"
+         "-d | --device name    Video device name [%s]\n"
+         "-j | --threads n      number of threads to use for image processing\n"
+         "-h | --help           Print this message\n"
          "",
          argv[0], dev_name);
 }
 
-static const char short_options[] = "d:h";
+static const char short_options[] = "d:j:h";
 
 static const struct option
 long_options[] = {
-    { "device", required_argument, NULL, 'd' },
-    { "help",   no_argument,       NULL, 'h' },
+    { "device",     required_argument, NULL, 'd' },
+    { "threads",    required_argument, NULL, 'j' },
+    { "help",       no_argument,       NULL, 'h' },
     { 0, 0, 0, 0 }
 };
 
 int main(int argc, char **argv){
 
     dev_name = "/dev/video0";
+    int i = 0;
 
     for (;;) {
         int idx;
@@ -433,6 +438,18 @@ int main(int argc, char **argv){
 
         case 'd':
             dev_name = optarg;
+            break;
+
+        case 'j':
+            i = 0;
+            while(optarg[i]){
+                if(!isdigit(optarg[i])){
+                    usage(stdout, argc, argv);
+                    exit(EXIT_SUCCESS);
+                }
+                i++;
+            }
+            set_thread_n(atoi(optarg));
             break;
 
         case 'h':
