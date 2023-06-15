@@ -398,7 +398,6 @@ static void usage(FILE *fp, int argc, char **argv){
 
     fprintf(fp,
          "Usage: %s [options]\n\n"
-         "Version 1.3\n"
          "Options:\n"
          "-d | --device name    Video device name [%s]\n"
          "-j | --threads n      number of threads to use for image processing\n"
