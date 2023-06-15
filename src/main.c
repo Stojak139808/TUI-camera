@@ -219,10 +219,11 @@ static void uninit_device(void){
 
     unsigned int i;
 
-    for (i = 0; i < n_buffers; ++i)
-        if (-1 == munmap(buffers[i].start, buffers[i].length))
+    for (i = 0; i < n_buffers; ++i){
+        if (-1 == munmap(buffers[i].start, buffers[i].length)){
             errno_exit("munmap");
-
+        }
+    }
     free(buffers);
 }
 
@@ -353,11 +354,14 @@ static void init_device(void){
 
     /* Buggy driver paranoia. */
     min = fmt.fmt.pix.width * 2;
-    if (fmt.fmt.pix.bytesperline < min)
+    if (fmt.fmt.pix.bytesperline < min){
         fmt.fmt.pix.bytesperline = min;
+    }
+
     min = fmt.fmt.pix.bytesperline * fmt.fmt.pix.height;
-    if (fmt.fmt.pix.sizeimage < min)
+    if (fmt.fmt.pix.sizeimage < min){
         fmt.fmt.pix.sizeimage = min;
+    }
 
     init_mmap();
 }
@@ -397,23 +401,24 @@ static void open_device(void){
 static void usage(FILE *fp, int argc, char **argv){
 
     fprintf(fp,
-         "Usage: %s [options]\n\n"
-         "Options:\n"
-         "-d | --device name    Video device name [%s]\n"
-         "-j | --threads n      number of threads to use for image processing\n"
-         "-h | --help           Print this message\n"
-         "",
-         argv[0], dev_name);
+        "Usage: %s [options]\n\n"
+        "Options:\n"
+        "-d | --device name    Video device name [%s]\n"
+        "-j | --threads n      number of threads to use for image processing\n"
+        "-h | --help           Print this message\n"
+        "",
+        argv[0],
+        dev_name
+    );
 }
 
 static const char short_options[] = "d:j:h";
 
-static const struct option
-long_options[] = {
+static const struct option long_options[] = {
     { "device",     required_argument, NULL, 'd' },
     { "threads",    required_argument, NULL, 'j' },
     { "help",       no_argument,       NULL, 'h' },
-    { 0, 0, 0, 0 }
+    { 0,            0,                 0,     0  }
 };
 
 int main(int argc, char **argv){

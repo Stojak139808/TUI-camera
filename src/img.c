@@ -26,8 +26,8 @@ static void *t_rgb_to_grey(void *arg){
     struct t_rgb_to_grey_info *args = (struct t_rgb_to_grey_info*)arg;
     uint8_t *s;
 
-    for(int y = args->y_start; y < args->y_start + args->height; y++){
-        for(int x = 0; x < args->dst->width; x++){
+    for (int y = args->y_start; y < args->y_start + args->height; y++) {
+        for (int x = 0; x < args->dst->width; x++) {
             s = PIXEL_AT(args->src, x, y);
             /* convert by average */
             *(args->dst->image + args->dst->width*y + x) = (s[0]+s[1]+s[2])/3;
@@ -44,12 +44,12 @@ int rgb_to_grey(image_t *src, image_t *dst){
     int px_per_thread = 0;
     volatile unsigned int local_n_threads = n_threads;
 
-    if(src->height != dst->height || src->width  != dst->width){
+    if (src->height != dst->height || src->width  != dst->width) {
         fprintf(stderr, "rgb_to_grey: sizes don't match\n");
         return 1;
     }
 
-    if(dst->depth != 1){
+    if (dst->depth != 1) {
         fprintf(stderr, "rgb_to_grey: dst has wrong depth\n");
         return 1;
     }
@@ -61,13 +61,13 @@ int rgb_to_grey(image_t *src, image_t *dst){
     px_per_thread = dst->height / local_n_threads;
 
     /* create threads */
-    for(int i = 0; i < local_n_threads; i++){
+    for (int i = 0; i < local_n_threads; i++) {
         targs[i].src = src;
         targs[i].dst = dst;
         targs[i].height = px_per_thread;
         targs[i].y_start = px_per_thread * i;
 
-        if( i + 1 == local_n_threads ){
+        if (i + 1 == local_n_threads) {
             targs[i].height += dst->height % local_n_threads;
         }
 
@@ -75,7 +75,7 @@ int rgb_to_grey(image_t *src, image_t *dst){
     }
 
     /* join all children */
-    for (int i = 0; i < local_n_threads; i++){
+    for (int i = 0; i < local_n_threads; i++) {
         pthread_join(tid[i], NULL);
     }
 
@@ -113,8 +113,8 @@ void *t_resize_image(void *arg){
     int new_x = 0;
     int new_y = 0;
 
-    for(y = args->y_start; y < args->y_start + args->height; y++){
-        for(x = 0; x < args->dst->width; x++){
+    for (y = args->y_start; y < args->y_start + args->height; y++) {
+        for (x = 0; x < args->dst->width; x++) {
             Px = MULTIPLY_FIXED(INT_TO_FIXED(x), x_ratio);
             Py = MULTIPLY_FIXED(INT_TO_FIXED(y), y_ratio);
             y1 = CEIL(Py);
@@ -151,6 +151,7 @@ int resize_image(image_t* src, image_t* dst){
     struct t_resize_image_info *targs;
     int px_per_thread = 0;
     volatile unsigned int local_n_threads = n_threads;
+    int i;
 
     tid = (pthread_t*)malloc(sizeof(pthread_t) * local_n_threads);
     targs = (struct t_resize_image_info*)malloc(
@@ -159,19 +160,19 @@ int resize_image(image_t* src, image_t* dst){
     px_per_thread = dst->height / local_n_threads;
 
     /* create threads */
-    for(int i = 0; i < local_n_threads; i++){
+    for (i = 0; i < local_n_threads; i++) {
         targs[i].src = src;
         targs[i].dst = dst;
         targs[i].height = px_per_thread;
         targs[i].y_start = px_per_thread * i;
 
-        if( i + 1 == local_n_threads ){
+        if (i + 1 == local_n_threads) {
             targs[i].height += dst->height % local_n_threads;
         }
 
         pthread_create(tid + i, NULL, t_resize_image, (void*)(targs + i));
     }
-    for(int i = 0; i < local_n_threads; i++){
+    for (i = 0; i < local_n_threads; i++) {
         pthread_join(tid[i], NULL);
     }
 
@@ -182,8 +183,11 @@ int resize_image(image_t* src, image_t* dst){
 
 }
 
-void decompress_jpeg(uint8_t *compressed_image, unsigned int jpeg_size,
-    image_t *dst){
+void decompress_jpeg(
+    uint8_t *compressed_image,
+    unsigned int jpeg_size,
+    image_t *dst
+){
 
     int jpegSubsamp, width = 1000, height = 1000;
     int ret = 0;
@@ -191,7 +195,7 @@ void decompress_jpeg(uint8_t *compressed_image, unsigned int jpeg_size,
 
     tjhandle jpeg_decompressor = tjInitDecompress();
 
-    if( NULL == jpeg_decompressor ){
+    if (NULL == jpeg_decompressor) {
         fprintf(
             stderr,
             "jpeg error: failed to create decompressor\n"
@@ -208,7 +212,7 @@ void decompress_jpeg(uint8_t *compressed_image, unsigned int jpeg_size,
         &jpegSubsamp
     );
 
-    if( -1 == ret ){
+    if (-1 == ret) {
         fprintf(stderr, "jpeg error: %s\n", tjGetErrorStr2(jpeg_decompressor));
         exit(EXIT_FAILURE);
     }
@@ -225,7 +229,7 @@ void decompress_jpeg(uint8_t *compressed_image, unsigned int jpeg_size,
         TJFLAG_FASTDCT
     );
 
-    if( -1 == ret ){
+    if (-1 == ret) {
         fprintf(stderr, "jpeg error: %s\n", tjGetErrorStr2(jpeg_decompressor));
         exit(EXIT_FAILURE);
     }

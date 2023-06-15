@@ -28,14 +28,15 @@ void init_window(){
         main_window.window,
         main_window.max_y,
         main_window.max_x
-        );
-    if(!main_window.max_x || !main_window.max_y){
+    );
+
+    if (!main_window.max_x || !main_window.max_y) {
         fprintf(stderr, "At least one terminal dimension is equal to 0\n");
         exit(EXIT_FAILURE);
     }
+
     raw();
     //noecho();
-
     nodelay(main_window.window, 1);
 }
 
@@ -50,7 +51,7 @@ void get_window_xy(uint32_t *x, uint32_t *y){
 
 void display_frame(uint8_t *frame, size_t n){
     clear();
-    for(int i = 0; i < n; i++){
+    for (int i = 0; i < n; i++) {
         addch(palette[(frame[i]*intervals)/0xffu]);
     }
     refresh();
