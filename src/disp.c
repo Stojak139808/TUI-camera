@@ -49,10 +49,12 @@ void get_window_xy(uint32_t *x, uint32_t *y){
     *y = main_window.max_y;
 }
 
-void display_frame(uint8_t *frame, size_t n){
+void display_frame(uint8_t *frame, size_t n, size_t line_width){
     clear();
-    for (int i = 0; i < n; i++) {
-        addch(palette[(frame[i]*intervals)/0xffu]);
+    for (int y = 0; y < n; y += line_width) {
+        for (int x = y + line_width - 1; x >= y; x--){
+            addch(palette[((frame[x])*intervals)/0xffu]);
+        }
     }
     refresh();
 }

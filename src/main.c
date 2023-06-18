@@ -106,8 +106,9 @@ static void process_image(void *p, int size){
 
     display_frame(
         resized_buffer.image,
-        resized_buffer.width * resized_buffer.height
-        );
+        resized_buffer.width * resized_buffer.height,
+        resized_buffer.width
+    );
 
     free(decompressed_image.image);
 }
