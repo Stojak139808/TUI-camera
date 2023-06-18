@@ -22,3 +22,4 @@ A webcam client for your terminal, because we surely needed one.
     ```
 * resizing and recoloring can be done while resizing the jpeg, by looking at the
   turbo-jpeg api
+* image processing needs more polish, the quality was better on the cv2 version
