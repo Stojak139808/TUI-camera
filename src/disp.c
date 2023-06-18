@@ -19,7 +19,7 @@ static const char palette[] = {' ', '.', ':', '-', '=', '+', '*', '#', '%', '@'}
 //    '\\', '|', '(', ')', '1', '{', '}', '[', ']', '?', '-', '_', '+', '~', '<',
 //    '>', 'i', '!', 'l', 'I', ';', ':', ',', '\"', '^', '`', '\'', '.', ' '};
 
-static const uint8_t intervals = sizeof(palette)/sizeof(char) - 1;
+static const uint8_t intervals = sizeof(palette)/sizeof(char);
 
 void init_window(){
     /* should return stdscr */
@@ -53,7 +53,7 @@ void display_frame(uint8_t *frame, size_t n, size_t line_width){
     clear();
     for (int y = 0; y < n; y += line_width) {
         for (int x = y + line_width - 1; x >= y; x--){
-            addch(palette[((frame[x])*intervals)/0xffu]);
+            addch(palette[((frame[x])*intervals)/0x100u]);
         }
     }
     refresh();
