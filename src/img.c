@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <string.h>
 
-/* don't use this is functions that start threads as it can change at any time 
+/* don't use this is functions that start threads as it can change at any time
    and that could break joining threads together
 */
 static volatile unsigned int n_threads = 1;

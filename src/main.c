@@ -1,7 +1,7 @@
-/* 
+/*
  * based on V4L2 example from the linux kernel documentation
  * https://www.kernel.org/doc/html/v4.9/media/uapi/v4l/capture.c.html
- * 
+ *
  */
 
 #include <stdio.h>
@@ -243,7 +243,7 @@ static void init_mmap(void){
             fprintf(stderr, "%s does not support "
             "memory mappingn", dev_name);
             exit(EXIT_FAILURE);
-        } 
+        }
         else {
             errno_exit("VIDIOC_REQBUFS");
         }
@@ -251,7 +251,7 @@ static void init_mmap(void){
 
     if (req.count < 2) {
         fprintf(
-            stderr, 
+            stderr,
             "Insufficient buffer memory on %s\n",
             dev_name
         );
